@@ -25,6 +25,11 @@
   .flag.noflag{background:repeating-linear-gradient(45deg,#e5e7eb,#e5e7eb 3px,#eef1f5 3px,#eef1f5 6px)}
   .plus1{display:inline-block;font-size:10px;font-weight:800;color:#fff;background:#16a34a;border-radius:999px;padding:1px 6px;margin-left:5px;vertical-align:1px;box-shadow:0 1px 1px rgba(22,163,74,.3)}
   .boot{margin:0 1px}
+  .aus-card .aus-h{font-size:10px;font-weight:800;letter-spacing:.05em;color:#94a3b8;text-transform:uppercase;margin-top:9px}
+  .aus-card .aus-val{font-size:26px;margin:1px 0 0}
+  .aus-card .aus-s{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#0f172a;line-height:1.6}
+  .aus-card .aus-s .aus-g{font-weight:800;color:#16a34a}
+  .aus-card .aus-s.muted{color:#94a3b8;font-weight:500;display:block}
   .wrap{max-width:1280px;margin:0 auto;padding:0 16px}
   /* header */
   .topbar{background:var(--navy);color:#fff}
@@ -193,14 +198,19 @@ function statCards(){
   const ts = d.topScorer;
   const tsName = ts && ts.player ? ts.player.name : null;
   const tsTeam = ts && ts.team ? ts.team.name : null;
+  const ausTop = d.ausTopScorers || [];
+  const ausScorersHtml = ausTop.length
+    ? ausTop.map(s => `<div class="aus-s">${esc(s.name)}<span class="aus-g">${s.goals}</span></div>`).join("")
+    : '<div class="aus-s muted">Top scorer TBD</div>';
   return `<div class="cards">
     <div class="card"><div class="lbl">👥 Participants</div><div class="val">${d.participants.length}</div><div class="sub">in ${esc(CONFIG.title)}</div></div>
     <div class="card"><div class="lbl">⚡ Matches Played</div><div class="val">${d.finishedMatches||0}</div><div class="sub">of ${CONFIG.totalMatches} total</div></div>
     <div class="card"><div class="lbl">🎯 Goals Scored</div><div class="val">${d.totalGoalsSoFar||0}</div><div class="sub">tournament total</div></div>
     <div class="card"><div class="lbl">📈 Top Scorer</div><div class="val">${ts?ts.goals+" goals":"TBD"}</div>
       <div class="sub">${tsName?flag(tsTeam)+" "+esc(tsName)+' <span class="country">('+esc(tsTeam)+')</span>':"No data yet"}</div></div>
-    <div class="card"><div class="lbl">${flag("Australia")} Australia</div><div class="val">${(d.ausActualGoals||0)} goals</div>
-      <div class="sub">${d.ausActualScorer?'<span class="boot">👟</span> '+esc(d.ausActualScorer)+(d.ausActualScorerGoals!=null?' <span class="country">('+d.ausActualScorerGoals+(d.ausActualScorerGoals===1?' goal)':' goals)')+'</span>':''):"Top scorer TBD"}</div></div>
+    <div class="card aus-card"><div class="lbl">${flag("Australia")} Australia</div>
+      <div class="aus-h">Total Goals</div><div class="val aus-val">${d.ausActualGoals||0}</div>
+      <div class="aus-h">Top Goal Scorer</div>${ausScorersHtml}</div>
   </div>`;
 }
 
