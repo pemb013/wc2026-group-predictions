@@ -938,6 +938,7 @@ const SNAPSHOT = {
   "ausActualGoals": 2,
   "ausActualScorer": null,
   "ausActualScorerGoals": null,
+  "ausTopScorers": [],
   "groupDraw": {
     "A": [
       "Mexico",
@@ -1380,13 +1381,29 @@ function scoreParticipant(p, actualGroups, topScorerGoals) {
   return { score, breakdown };
 }
 
+// --- Australia top scorers (EDIT THIS as the tournament progresses) ---
+// football-data's public scorers feed is incomplete for low-goal scorers
+// (it currently only credits one of Australia's goals), so this list is the
+// source of truth for the Australia card. Set to [] to fall back to whatever
+// the live scorers feed reports for Australia.
+const AUS_TOP_SCORERS = [
+  { name: "Nestory Irankunda", goals: 1 },
+  { name: "Connor Metcalfe", goals: 1 },
+];
+
 function buildPayload(results) {
   const participants = PARTICIPANTS.map((p) => ({ ...p }));
   const tsGoals = results.topScorer && results.topScorer.goals;
   const leaderboard = participants
     .map((p) => ({ ...p, ...scoreParticipant(p, results.actualGroups, tsGoals) }))
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-  return { participants, leaderboard, ...results };
+  const out = { participants, leaderboard, ...results };
+  if (AUS_TOP_SCORERS && AUS_TOP_SCORERS.length) {
+    out.ausTopScorers = AUS_TOP_SCORERS;
+    out.ausActualScorer = AUS_TOP_SCORERS[0].name;
+    out.ausActualScorerGoals = AUS_TOP_SCORERS[0].goals;
+  }
+  return out;
 }
 
 async function fetchLive(key) {
@@ -1434,9 +1451,12 @@ async function fetchLive(key) {
     if (m.awayTeam && isAus(m.awayTeam.name)) return n + (ft.away || 0);
     return n;
   }, 0);
-  const ausScorerEntry = (scorers.scorers || [])
-    .filter((s) => s.team && isAus(s.team.name) && (s.goals || 0) > 0)
-    .sort((a, b) => (b.goals || 0) - (a.goals || 0))[0];
+  const ausScorers = (scorers.scorers || [])
+    .filter((s) => s.team && isAus(s.team.name) && (s.goals || 0) > 0);
+  const ausMax = ausScorers.reduce((m, s) => Math.max(m, s.goals || 0), 0);
+  const ausTopScorers = ausScorers
+    .filter((s) => (s.goals || 0) === ausMax)
+    .map((s) => ({ name: s.player && s.player.name, goals: s.goals }));
 
   return {
     actualGroups: Object.keys(actualGroups).length ? actualGroups : SNAPSHOT.actualGroups,
@@ -1445,8 +1465,9 @@ async function fetchLive(key) {
     totalGoalsSoFar,
     finishedMatches: finished.length,
     ausActualGoals: ausGoalsLive,
-    ausActualScorer: ausScorerEntry ? (ausScorerEntry.player && ausScorerEntry.player.name) : null,
-    ausActualScorerGoals: ausScorerEntry ? ausScorerEntry.goals : null,
+    ausTopScorers: ausTopScorers,
+    ausActualScorer: ausTopScorers[0] ? ausTopScorers[0].name : null,
+    ausActualScorerGoals: ausTopScorers[0] ? ausTopScorers[0].goals : null,
     groupDraw: SNAPSHOT.groupDraw,
     recentResults: finished.sort((a, b) => new Date(b.utcDate) - new Date(a.utcDate)).slice(0, 10),
     upcomingMatches: timed.sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate)).slice(0, 12),
