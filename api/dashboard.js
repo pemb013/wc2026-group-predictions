@@ -937,6 +937,7 @@ const SNAPSHOT = {
   "finishedMatches": 20,
   "ausActualGoals": 2,
   "ausActualScorer": null,
+  "ausActualScorerGoals": null,
   "groupDraw": {
     "A": [
       "Mexico",
@@ -1393,7 +1394,7 @@ async function fetchLive(key) {
   const headers = { "X-Auth-Token": key };
   const [stRes, scRes, mRes] = await Promise.all([
     fetch(`${base}/standings`, { headers }),
-    fetch(`${base}/scorers?limit=5`, { headers }),
+    fetch(`${base}/scorers?limit=100`, { headers }),
     fetch(`${base}/matches`, { headers }),
   ]);
   if (!stRes.ok || !mRes.ok) throw new Error("football-data fetch failed");
@@ -1425,14 +1426,27 @@ async function fetchLive(key) {
     n + ((m.score && m.score.fullTime && (m.score.fullTime.home || 0) + (m.score.fullTime.away || 0)) || 0), 0);
   const sc = (scorers.scorers || [])[0];
 
+  // Australia: real tournament goals (sum across finished matches) + top scorer from scorers feed
+  const isAus = (n) => n === "Australia";
+  const ausGoalsLive = finished.reduce((n, m) => {
+    const ft = (m.score && m.score.fullTime) || {};
+    if (m.homeTeam && isAus(m.homeTeam.name)) return n + (ft.home || 0);
+    if (m.awayTeam && isAus(m.awayTeam.name)) return n + (ft.away || 0);
+    return n;
+  }, 0);
+  const ausScorerEntry = (scorers.scorers || [])
+    .filter((s) => s.team && isAus(s.team.name) && (s.goals || 0) > 0)
+    .sort((a, b) => (b.goals || 0) - (a.goals || 0))[0];
+
   return {
     actualGroups: Object.keys(actualGroups).length ? actualGroups : SNAPSHOT.actualGroups,
     topScorer: sc ? { player: { name: sc.player && sc.player.name }, team: { name: sc.team && sc.team.name }, goals: sc.goals } : SNAPSHOT.topScorer,
     topScorers: (scorers.scorers || []).slice(0, 5).map((s) => ({ player: { name: s.player && s.player.name }, team: { name: s.team && s.team.name }, goals: s.goals })),
     totalGoalsSoFar,
     finishedMatches: finished.length,
-    ausActualGoals: SNAPSHOT.ausActualGoals,
-    ausActualScorer: SNAPSHOT.ausActualScorer,
+    ausActualGoals: ausGoalsLive,
+    ausActualScorer: ausScorerEntry ? (ausScorerEntry.player && ausScorerEntry.player.name) : null,
+    ausActualScorerGoals: ausScorerEntry ? ausScorerEntry.goals : null,
     groupDraw: SNAPSHOT.groupDraw,
     recentResults: finished.sort((a, b) => new Date(b.utcDate) - new Date(a.utcDate)).slice(0, 10),
     upcomingMatches: timed.sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate)).slice(0, 12),
