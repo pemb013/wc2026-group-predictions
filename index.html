@@ -23,6 +23,8 @@
   a{color:inherit}
   .flag{display:inline-block;width:21px;height:15px;border-radius:2px;object-fit:cover;vertical-align:-3px;box-shadow:0 0 0 1px rgba(16,27,45,.08);background:#eef1f5}
   .flag.noflag{background:repeating-linear-gradient(45deg,#e5e7eb,#e5e7eb 3px,#eef1f5 3px,#eef1f5 6px)}
+  .plus1{display:inline-block;font-size:10px;font-weight:800;color:#fff;background:#16a34a;border-radius:999px;padding:1px 6px;margin-left:5px;vertical-align:1px;box-shadow:0 1px 1px rgba(22,163,74,.3)}
+  .boot{margin:0 1px}
   .wrap{max-width:1280px;margin:0 auto;padding:0 16px}
   /* header */
   .topbar{background:var(--navy);color:#fff}
@@ -31,7 +33,7 @@
   .brand h1{font-size:18px;font-weight:800;margin:0;line-height:1.1}
   .brand p{font-size:12.5px;margin:2px 0 0;color:#9fb0c6}
   /* stat cards */
-  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:20px 0}
+  .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin:20px 0}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px}
   .card .lbl{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
   .card .val{font-size:30px;font-weight:800;margin-top:8px;line-height:1}
@@ -120,6 +122,7 @@
   .center{min-height:60vh;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted)}
   .spin{width:30px;height:30px;border:3px solid #e5e7eb;border-top-color:var(--accent);border-radius:50%;animation:rot .8s linear infinite;margin:0 auto 12px}
   @keyframes rot{to{transform:rotate(360deg)}}
+  @media(max-width:1180px){.cards{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:1000px){.cards{grid-template-columns:repeat(2,1fr)}.grid3{grid-template-columns:1fr}}
   @media(max-width:560px){.cards{grid-template-columns:1fr}.fx{flex-direction:column;align-items:flex-start}.fx .when{flex-basis:auto}.fx .teams{justify-content:flex-start}}
 </style>
@@ -196,6 +199,8 @@ function statCards(){
     <div class="card"><div class="lbl">🎯 Goals Scored</div><div class="val">${d.totalGoalsSoFar||0}</div><div class="sub">tournament total</div></div>
     <div class="card"><div class="lbl">📈 Top Scorer</div><div class="val">${ts?ts.goals+" goals":"TBD"}</div>
       <div class="sub">${tsName?flag(tsTeam)+" "+esc(tsName)+' <span class="country">('+esc(tsTeam)+')</span>':"No data yet"}</div></div>
+    <div class="card"><div class="lbl">${flag("Australia")} Australia</div><div class="val">${(d.ausActualGoals||0)} goals</div>
+      <div class="sub">${d.ausActualScorer?'<span class="boot">👟</span> '+esc(d.ausActualScorer)+(d.ausActualScorerGoals!=null?' <span class="country">('+d.ausActualScorerGoals+(d.ausActualScorerGoals===1?' goal)':' goals)')+'</span>':''):"Top scorer TBD"}</div></div>
   </div>`;
 }
 
@@ -214,14 +219,6 @@ function prizeBanner(){
     </div></div>`;
 }
 
-function ausBanner(){
-  const g = DATA.ausActualGoals, s = DATA.ausActualScorer;
-  return `<div class="banner aus">
-    <div class="b-left"><span class="chip" style="font-weight:800;background:#fff;border-color:#bbf7d0">AU</span><span class="b-title">Australia Live Stats</span></div>
-    <div class="b-right"><span>⚽ Goals: <b>${g!=null?g:0}</b></span><span>📋 Top scorer: <b>${s?esc(s):"None yet"}</b></span></div>
-  </div>`;
-}
-
 function tabsNav(){
   const t = [["leaderboard","🏆 Leaderboard"],["groups","◎ Groups"],["fixtures","🕐 Fixtures"],["allpicks","⭐ All Picks"]];
   return `<div class="tabs">${t.map(([k,l])=>`<button class="tab ${TAB===k?"active":""}" data-tab="${k}">${l}</button>`).join("")}</div>`;
@@ -235,6 +232,7 @@ function leaderboard(){
     const cls = rk<=3?("r"+rk):"";
     const payChip = (CONFIG.showPrizePool && rk<=3) ? `<span class="chip pay">$${CONFIG.payouts[rk-1]}</span>` : "";
     const open = OPEN===p.email;
+    const e = earnedSet(p);
     return `<div class="lb-row ${cls}" data-email="${esc(p.email)}">
       <div class="lb-top">
         <div class="rank">${medal?`<span class="rmedal">${medal}</span>`:rk}</div>
@@ -242,9 +240,10 @@ function leaderboard(){
           <div class="lb-name">${esc(p.name)} ${payChip}<span class="chip">${flag(p.overallWinner)} ${esc(p.overallWinner)} to win</span></div>
           <div class="lb-detail">
             <span class="d">🧤 ${esc(p.goldenGlove||"—")}</span>
-            <span class="d">👟 ${esc(p.goldenBoot||"—")}</span>
+            <span class="d">👟 ${esc(p.goldenBoot||"—")} ${e.has("GB")?plus1():""}</span>
             <span class="d">⚽ ${p.totalGoals} goals</span>
-            <span class="d">${flag("Australia")} ${p.ausGoals} — ${esc(p.ausScorer||"—")}</span>
+            <span class="d">${flag("Australia")} ${p.ausGoals} goals</span>
+            <span class="d">${flag("Australia")}<span class="boot">👟</span> ${esc(p.ausScorer||"—")}</span>
           </div>
         </div>
         <div class="pts"><div class="n">${p.score}</div><div class="u">pts</div></div>
@@ -255,12 +254,24 @@ function leaderboard(){
   }).join("");
 }
 
+function earnedSet(p){
+  const s = new Set();
+  (p.breakdown||[]).forEach(b=>{
+    const m = b.match(/Group ([A-L]) (1st|2nd)/);
+    if(m) s.add(m[1] + (m[2]==="1st"?"1":"2"));
+    if(/Golden Boot/i.test(b)) s.add("GB");
+  });
+  return s;
+}
+function plus1(){ return '<span class="plus1">+1</span>'; }
+
 function picksPanel(p){
-  const g = p.groups||{};
+  const g = p.groups||{}, e = earnedSet(p);
   const cells = GKEYS.map(L=>{
     const a=g[L.toLowerCase()+"1"], b=g[L.toLowerCase()+"2"];
     return `<div class="pk"><div class="g">Group ${L}</div>
-      <div class="t">${flag(a)} ${esc(a)}</div><div class="t">${flag(b)} ${esc(b)}</div></div>`;
+      <div class="t">${flag(a)} ${esc(a)} ${e.has(L+"1")?plus1():""}</div>
+      <div class="t">${flag(b)} ${esc(b)} ${e.has(L+"2")?plus1():""}</div></div>`;
   }).join("");
   return `<div class="picks-grid">${cells}</div>`;
 }
@@ -338,7 +349,7 @@ function render(){
     <div class="wrap">
       ${statCards()}
       ${tabsNav()}
-      ${TAB==="leaderboard"?prizeBanner()+ausBanner():""}
+      ${TAB==="leaderboard"?prizeBanner():""}
       <div id="tabbody">${body}</div>
       <div class="foot">${updated?("🌐 Last updated "+updated.time+" · "):""}Data via football-data.org</div>
     </div>`;
