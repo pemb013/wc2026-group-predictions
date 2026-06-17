@@ -1404,7 +1404,7 @@ async function fetchLive(key) {
   const actualGroups = {};
   for (const s of (standings.standings || [])) {
     if (!s.group) continue;
-    const L = s.group.replace("GROUP_", "");
+    const L = (s.group || "").replace(/group[_\s]*/i, "").trim().toUpperCase();
     const table = (s.table || []).map((r) => ({
       name: r.team && r.team.name, played: r.playedGames, won: r.won, drawn: r.draw,
       lost: r.lost, gf: r.goalsFor, ga: r.goalsAgainst, gd: r.goalDifference, pts: r.points,
