@@ -198,9 +198,10 @@ function statCards(){
   const ts = d.topScorer;
   const tsName = ts && ts.player ? ts.player.name : null;
   const tsTeam = ts && ts.team ? ts.team.name : null;
-  const ausTop = d.ausTopScorers || [];
+  let ausTop = d.ausTopScorers || [];
+  if (!ausTop.length && d.ausActualScorer) ausTop = [{ name: d.ausActualScorer, goals: d.ausActualScorerGoals }];
   const ausScorersHtml = ausTop.length
-    ? ausTop.map(s => `<div class="aus-s">${esc(s.name)}<span class="aus-g">${s.goals}</span></div>`).join("")
+    ? ausTop.map(s => `<div class="aus-s">${esc(s.name)}<span class="aus-g">${s.goals!=null?s.goals:""}</span></div>`).join("")
     : '<div class="aus-s muted">Top scorer TBD</div>';
   return `<div class="cards">
     <div class="card"><div class="lbl">👥 Participants</div><div class="val">${d.participants.length}</div><div class="sub">in ${esc(CONFIG.title)}</div></div>
