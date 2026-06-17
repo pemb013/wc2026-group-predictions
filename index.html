@@ -21,6 +21,8 @@
   html,body{margin:0;padding:0}
   body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
   a{color:inherit}
+  .flag{display:inline-block;width:21px;height:15px;border-radius:2px;object-fit:cover;vertical-align:-3px;box-shadow:0 0 0 1px rgba(16,27,45,.08);background:#eef1f5}
+  .flag.noflag{background:repeating-linear-gradient(45deg,#e5e7eb,#e5e7eb 3px,#eef1f5 3px,#eef1f5 6px)}
   .wrap{max-width:1280px;margin:0 auto;padding:0 16px}
   /* header */
   .topbar{background:var(--navy);color:#fff}
@@ -136,21 +138,27 @@ const CONFIG = {
   tzLabel: "ACST"
 };
 
-const FLAGS = {
-  "Mexico":"🇲🇽","South Africa":"🇿🇦","South Korea":"🇰🇷","Korea Republic":"🇰🇷",
-  "Czech Republic":"🇨🇿","Czechia":"🇨🇿","Canada":"🇨🇦",
-  "Bosnia and Herzegovina":"🇧🇦","Bosnia & Herzegovina":"🇧🇦","Bosnia-Herzegovina":"🇧🇦","Bosnia-H.":"🇧🇦",
-  "Qatar":"🇶🇦","Switzerland":"🇨🇭","Brazil":"🇧🇷","Morocco":"🇲🇦","Haiti":"🇭🇹","Scotland":"🏴󠁧󠁢󠁳󠁣󠁴󠁿",
-  "United States":"🇺🇸","USA":"🇺🇸","Paraguay":"🇵🇾","Australia":"🇦🇺","Türkiye":"🇹🇷","Turkey":"🇹🇷",
-  "Germany":"🇩🇪","Curaçao":"🇨🇼","Curacao":"🇨🇼","Ivory Coast":"🇨🇮","Ecuador":"🇪🇨",
-  "Netherlands":"🇳🇱","Japan":"🇯🇵","Sweden":"🇸🇪","Tunisia":"🇹🇳","Belgium":"🇧🇪","Egypt":"🇪🇬",
-  "Iran":"🇮🇷","New Zealand":"🇳🇿","Spain":"🇪🇸","Cape Verde":"🇨🇻","Cape Verde Islands":"🇨🇻",
-  "Saudi Arabia":"🇸🇦","Uruguay":"🇺🇾","France":"🇫🇷","Senegal":"🇸🇳","Iraq":"🇮🇶","Norway":"🇳🇴",
-  "Argentina":"🇦🇷","Algeria":"🇩🇿","Austria":"🇦🇹","Jordan":"🇯🇴","Portugal":"🇵🇹",
-  "DR Congo":"🇨🇩","Congo DR":"🇨🇩","Uzbekistan":"🇺🇿","Colombia":"🇨🇴",
-  "England":"🏴󠁧󠁢󠁥󠁮󠁧󠁿","Croatia":"🇭🇷","Ghana":"🇬🇭","Panama":"🇵🇦","Scotland ":"🏴󠁧󠁢󠁳󠁣󠁴󠁿"
+// country name -> flagcdn slug (ISO 3166-1 alpha-2, or gb-* subdivisions).
+// Rendered as <img> so flags display on every OS incl. Windows (which shows emoji flags as letters).
+const CODES = {
+  "Mexico":"mx","South Africa":"za","South Korea":"kr","Korea Republic":"kr",
+  "Czech Republic":"cz","Czechia":"cz","Canada":"ca",
+  "Bosnia and Herzegovina":"ba","Bosnia & Herzegovina":"ba","Bosnia-Herzegovina":"ba","Bosnia-H.":"ba",
+  "Qatar":"qa","Switzerland":"ch","Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct",
+  "United States":"us","USA":"us","Paraguay":"py","Australia":"au","Türkiye":"tr","Turkey":"tr",
+  "Germany":"de","Curaçao":"cw","Curacao":"cw","Ivory Coast":"ci","Ecuador":"ec",
+  "Netherlands":"nl","Japan":"jp","Sweden":"se","Tunisia":"tn","Belgium":"be","Egypt":"eg",
+  "Iran":"ir","New Zealand":"nz","Spain":"es","Cape Verde":"cv","Cape Verde Islands":"cv",
+  "Saudi Arabia":"sa","Uruguay":"uy","France":"fr","Senegal":"sn","Iraq":"iq","Norway":"no",
+  "Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo","Portugal":"pt",
+  "DR Congo":"cd","Congo DR":"cd","Uzbekistan":"uz","Colombia":"co",
+  "England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa","Wales":"gb-wls"
 };
-const flag = n => FLAGS[(n||"").trim()] || "🏳️";
+function flag(n){
+  const c = CODES[(n||"").trim()];
+  if(!c) return '<span class="flag noflag" title="'+esc(n)+'"></span>';
+  return '<img class="flag" loading="lazy" alt="" src="https://flagcdn.com/'+c+'.svg">';
+}
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const GKEYS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
 
@@ -236,7 +244,7 @@ function leaderboard(){
             <span class="d">🧤 ${esc(p.goldenGlove||"—")}</span>
             <span class="d">👟 ${esc(p.goldenBoot||"—")}</span>
             <span class="d">⚽ ${p.totalGoals} goals</span>
-            <span class="d">🇦🇺 ${p.ausGoals} — ${esc(p.ausScorer||"—")}</span>
+            <span class="d">${flag("Australia")} ${p.ausGoals} — ${esc(p.ausScorer||"—")}</span>
           </div>
         </div>
         <div class="pts"><div class="n">${p.score}</div><div class="u">pts</div></div>
