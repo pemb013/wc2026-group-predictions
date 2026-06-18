@@ -68,6 +68,7 @@
   .lb-name{font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .chip{font-size:12px;font-weight:600;color:#4b5563;background:#f1f3f6;border:1px solid var(--line);border-radius:999px;padding:2px 9px;display:inline-flex;align-items:center;gap:5px}
   .chip.pay{color:#92660b;background:#fdf3df;border-color:#f6e6c4}
+  .chip.pay .shr{font-weight:600;opacity:.65;font-size:10px;margin-left:2px}
   .lb-detail{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12.5px;margin-top:7px}
   .lb-detail .d{display:inline-flex;align-items:center;gap:5px}
   .pts{flex:0 0 auto;text-align:right}
@@ -235,13 +236,53 @@ function tabsNav(){
   return `<div class="tabs">${t.map(([k,l])=>`<button class="tab ${TAB===k?"active":""}" data-tab="${k}">${l}</button>`).join("")}</div>`;
 }
 
+function fmtMoney(n){
+  const r = Math.round(n*100)/100;
+  return Number.isInteger(r) ? String(r) : r.toFixed(2);
+}
+
+// Competition ranking: rank = 1 + (number of players with strictly more points).
+// Ties share a rank, so two tied for the top are both rank 1 and the next group jumps a place.
+function rankOf(lb, p){ return 1 + lb.filter(q => q.score > p.score).length; }
+
+// Prize sharing on ties: each distinct points-group claims the prize at its rank.
+// Any prize whose place was skipped by a tie above rolls down to the lowest podium group.
+// The combined dollars for a group are split equally among its members.
+function prizeMap(lb){
+  const map = {};
+  if(!CONFIG.showPrizePool) return map;
+  const payouts = CONFIG.payouts || [];
+  const groups = [];
+  lb.forEach(p=>{
+    const g = groups.find(x => x.score === p.score);
+    if(g) g.members.push(p); else groups.push({ score:p.score, members:[p], rank:0 });
+  });
+  let above = 0;
+  groups.forEach(g=>{ g.rank = above + 1; above += g.members.length; });
+  const podium = groups.filter(g => g.rank <= payouts.length);
+  if(!podium.length) return map;
+  const claimed = new Array(payouts.length).fill(false);
+  const dollars = new Map();
+  podium.forEach(g=>{ const i = g.rank-1; dollars.set(g, payouts[i]||0); claimed[i] = true; });
+  let leftover = 0;
+  for(let i=0;i<payouts.length;i++) if(!claimed[i]) leftover += payouts[i];
+  if(leftover>0){ const last = podium[podium.length-1]; dollars.set(last, dollars.get(last)+leftover); }
+  podium.forEach(g=>{
+    const per = dollars.get(g) / g.members.length;
+    g.members.forEach(m=>{ map[m.email] = { amount: per, shared: g.members.length > 1 }; });
+  });
+  return map;
+}
+
 function leaderboard(){
   const lb = DATA.leaderboard||[];
-  return lb.map((p,i)=>{
-    const rk = i+1;
+  const prizes = prizeMap(lb);
+  return lb.map((p)=>{
+    const rk = rankOf(lb, p);
     const medal = rk===1?"🥇":rk===2?"🥈":rk===3?"🥉":null;
     const cls = rk<=3?("r"+rk):"";
-    const payChip = (CONFIG.showPrizePool && rk<=3) ? `<span class="chip pay">$${CONFIG.payouts[rk-1]}</span>` : "";
+    const pr = prizes[p.email];
+    const payChip = pr ? `<span class="chip pay">$${fmtMoney(pr.amount)}${pr.shared?' <span class="shr">shared</span>':''}</span>` : "";
     const open = OPEN===p.email;
     const e = earnedSet(p);
     return `<div class="lb-row ${cls}" data-email="${esc(p.email)}">
