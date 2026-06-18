@@ -1458,7 +1458,18 @@ async function fetchLive(key) {
   const ms = matches.matches || [];
   const finished = ms.filter((m) => m.status === "FINISHED");
   const timed = ms.filter((m) => m.status === "TIMED" || m.status === "SCHEDULED");
-  const live = ms.filter((m) => ["IN_PLAY", "PAUSED", "LIVE"].includes(m.status));
+  const nowTs = Date.now();
+  // football-data's free tier sometimes leaves a finished match stuck on IN_PLAY.
+  // Treat a match that's been "in play" far longer than physically possible as over,
+  // so it drops off the live strip even before the feed flips it to FINISHED.
+  const staleLive = (m) => {
+    const ko = new Date(m.utcDate).getTime();
+    const lu = m.lastUpdated ? new Date(m.lastUpdated).getTime() : 0;
+    const elapsedMin = (Math.max(nowTs, lu) - ko) / 60000;
+    const capMin = m.stage === "GROUP_STAGE" ? 150 : 210; // group vs knockout (extra time/pens)
+    return elapsedMin > capMin;
+  };
+  const live = ms.filter((m) => ["IN_PLAY", "PAUSED", "LIVE"].includes(m.status) && !staleLive(m));
   const totalGoalsSoFar = finished.reduce((n, m) =>
     n + ((m.score && m.score.fullTime && (m.score.fullTime.home || 0) + (m.score.fullTime.away || 0)) || 0), 0);
   const sc = (scorers.scorers || [])[0];
