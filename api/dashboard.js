@@ -1366,7 +1366,21 @@ const canon = (x) => {
   return ALIASES[s] || s;
 };
 
-function scoreParticipant(p, actualGroups, topScorerGoals) {
+// Normalise a player name for comparison: strip accents, case, punctuation, extra spaces.
+function normName(s){
+  return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z\s]/g,"").replace(/\s+/g," ").trim();
+}
+// Same player if the normalised full names match, or (as a fallback for differing name
+// forms from the feed) the surnames match.
+function nameMatch(a,b){
+  const na=normName(a), nb=normName(b);
+  if(!na || !nb) return false;
+  if(na===nb) return true;
+  const la=na.split(" ").pop(), lb=nb.split(" ").pop();
+  return la===lb && la.length>2;
+}
+
+function scoreParticipant(p, actualGroups, topScorerGoals, topScorerName) {
   let score = 0; const breakdown = [];
   for (const L of GROUPS) {
     const ag = actualGroups[L.toUpperCase()];
@@ -1375,8 +1389,12 @@ function scoreParticipant(p, actualGroups, topScorerGoals) {
       if (canon(p.groups[L + "2"]) === canon(ag.second)) { score++; breakdown.push(`Group ${L.toUpperCase()} 2nd \u2713 +1`); }
     }
   }
-  if (typeof topScorerGoals === "number" && Math.abs((p.goldenBootGoals||0) - topScorerGoals) <= 2) {
-    score++; breakdown.push("Golden Boot goals within 2 \u2713 +1");
+  // Golden Boot: only scores if the predicted player IS the current top scorer AND the
+  // predicted goal tally is within 2 of that player's actual tally. Both must hold.
+  if (typeof topScorerGoals === "number" && topScorerName &&
+      nameMatch(p.goldenBoot, topScorerName) &&
+      Math.abs((p.goldenBootGoals || 0) - topScorerGoals) <= 2) {
+    score++; breakdown.push("Golden Boot player + goals \u2713 +1");
   }
   return { score, breakdown };
 }
@@ -1393,9 +1411,11 @@ const AUS_TOP_SCORERS = [
 
 function buildPayload(results) {
   const participants = PARTICIPANTS.map((p) => ({ ...p }));
-  const tsGoals = results.topScorer && results.topScorer.goals;
+  const ts = results.topScorer || {};
+  const tsGoals = ts.goals;
+  const tsName = ts.player && ts.player.name;
   const leaderboard = participants
-    .map((p) => ({ ...p, ...scoreParticipant(p, results.actualGroups, tsGoals) }))
+    .map((p) => ({ ...p, ...scoreParticipant(p, results.actualGroups, tsGoals, tsName) }))
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   const out = { participants, leaderboard, ...results };
   if (AUS_TOP_SCORERS && AUS_TOP_SCORERS.length) {
@@ -1477,13 +1497,32 @@ async function fetchLive(key) {
   };
 }
 
+// Keep the most recent successful live result in memory. This serves two purposes:
+// (1) within LIVE_TTL_MS we reuse it without re-calling football-data, so bursts of
+// viewers/refreshes don't blow the free-tier rate limit; (2) if a live fetch fails,
+// we fall back to the last good data instead of the ancient embedded SNAPSHOT.
+let LIVE_CACHE = { results: null, ts: 0 };
+const LIVE_TTL_MS = 20000;
+
 module.exports = async (req, res) => {
   const key = process.env.FOOTBALL_DATA_API_KEY || process.env.FOOTBALL_DATA_TOKEN || process.env.FOOTBALL_API_KEY;
-  let results = SNAPSHOT;
-  if (key) {
-    try { results = await fetchLive(key); } catch (e) { results = SNAPSHOT; }
+  let results;
+  const fresh = LIVE_CACHE.results && (Date.now() - LIVE_CACHE.ts < LIVE_TTL_MS);
+  if (fresh) {
+    results = LIVE_CACHE.results;
+  } else if (key) {
+    try {
+      results = await fetchLive(key);
+      LIVE_CACHE = { results, ts: Date.now() };
+    } catch (e) {
+      results = LIVE_CACHE.results || SNAPSHOT;
+    }
+  } else {
+    results = LIVE_CACHE.results || SNAPSHOT;
   }
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+  // Edge-cache ~20s and serve stale while revalidating: shields the upstream rate limit
+  // when many people watch, and smooths over transient hiccups. Browsers still revalidate.
+  res.setHeader("Cache-Control", "public, max-age=0, s-maxage=20, stale-while-revalidate=60");
   res.status(200).send(JSON.stringify(buildPayload(results)));
 };
