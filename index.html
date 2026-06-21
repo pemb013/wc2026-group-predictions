@@ -215,6 +215,12 @@ function statCards(){
   const ts = d.topScorer;
   const tsName = ts && ts.player ? ts.player.name : null;
   const tsTeam = ts && ts.team ? ts.team.name : null;
+  let tsList = d.topScorerList || [];
+  if (!tsList.length && tsName) tsList = [{ name: tsName, team: tsTeam, goals: ts.goals }];
+  const tsGoals = tsList.length ? tsList[0].goals : (ts ? ts.goals : null);
+  const tsNamesHtml = tsList.length
+    ? tsList.map(s => `<div class="aus-s">${flag(s.team)} ${esc(s.name)} <span class="country">(${esc(s.team)})</span></div>`).join("")
+    : '<div class="aus-s muted">No data yet</div>';
   let ausTop = d.ausTopScorers || [];
   if (!ausTop.length && d.ausActualScorer) ausTop = [{ name: d.ausActualScorer, goals: d.ausActualScorerGoals }];
   const ausScorersHtml = ausTop.length
@@ -224,8 +230,8 @@ function statCards(){
     <div class="card"><div class="lbl">👥 Participants</div><div class="val">${d.participants.length}</div><div class="sub">in ${esc(CONFIG.title)}</div></div>
     <div class="card"><div class="lbl">⚡ Matches Played</div><div class="val">${d.finishedMatches||0}</div><div class="sub">of ${CONFIG.totalMatches} total</div></div>
     <div class="card"><div class="lbl">🎯 Goals Scored</div><div class="val">${d.totalGoalsSoFar||0}</div><div class="sub">tournament total</div></div>
-    <div class="card"><div class="lbl">📈 Top Scorer</div><div class="val">${ts?ts.goals+" goals":"TBD"}</div>
-      <div class="sub">${tsName?flag(tsTeam)+" "+esc(tsName)+' <span class="country">('+esc(tsTeam)+')</span>':"No data yet"}</div></div>
+    <div class="card"><div class="lbl">📈 Top Scorer</div><div class="val">${tsGoals!=null?tsGoals+" goals":"TBD"}</div>
+      <div class="sub">${tsNamesHtml}</div></div>
     <div class="card aus-card"><div class="lbl">${flag("Australia")} Australia</div>
       <div class="aus-h">Total Goals</div><div class="val aus-val">${d.ausActualGoals||0}</div>
       <div class="aus-h">Top Goal Scorer</div>${ausScorersHtml}</div>
