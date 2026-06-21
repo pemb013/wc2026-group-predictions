@@ -1418,6 +1418,14 @@ function buildPayload(results) {
     .map((p) => ({ ...p, ...scoreParticipant(p, results.actualGroups, tsGoals, tsName) }))
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   const out = { participants, leaderboard, ...results };
+  // Ensure the tied top-scorer list always exists (e.g. on the snapshot fallback path).
+  if (!out.topScorerList || !out.topScorerList.length) {
+    const tsr = out.topScorers || [];
+    const max = tsr.length ? (tsr[0].goals || 0) : 0;
+    out.topScorerList = max > 0
+      ? tsr.filter((s) => (s.goals || 0) === max).map((s) => ({ name: s.player && s.player.name, team: s.team && s.team.name, goals: s.goals }))
+      : [];
+  }
   if (AUS_TOP_SCORERS && AUS_TOP_SCORERS.length) {
     out.ausTopScorers = AUS_TOP_SCORERS;
     out.ausActualScorer = AUS_TOP_SCORERS[0].name;
@@ -1473,6 +1481,12 @@ async function fetchLive(key) {
   const totalGoalsSoFar = finished.reduce((n, m) =>
     n + ((m.score && m.score.fullTime && (m.score.fullTime.home || 0) + (m.score.fullTime.away || 0)) || 0), 0);
   const sc = (scorers.scorers || [])[0];
+  // All players tied at the top goal count (so the Top Scorer widget shows ties, not just one).
+  const scAll = scorers.scorers || [];
+  const topG = scAll.length ? (scAll[0].goals || 0) : 0;
+  const topScorerList = topG > 0
+    ? scAll.filter((s) => (s.goals || 0) === topG).map((s) => ({ name: s.player && s.player.name, team: s.team && s.team.name, goals: s.goals }))
+    : [];
 
   // Australia: real tournament goals (sum across finished matches) + top scorer from scorers feed
   const isAus = (n) => n === "Australia";
@@ -1492,6 +1506,7 @@ async function fetchLive(key) {
   return {
     actualGroups: Object.keys(actualGroups).length ? actualGroups : SNAPSHOT.actualGroups,
     topScorer: sc ? { player: { name: sc.player && sc.player.name }, team: { name: sc.team && sc.team.name }, goals: sc.goals } : SNAPSHOT.topScorer,
+    topScorerList,
     topScorers: (scorers.scorers || []).slice(0, 5).map((s) => ({ player: { name: s.player && s.player.name }, team: { name: s.team && s.team.name }, goals: s.goals })),
     totalGoalsSoFar,
     finishedMatches: finished.length,
